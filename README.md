@@ -5,7 +5,8 @@ An implementation of a simple ATM controller with its test codes, as a custom ta
 * You can clone project from this GitHub repository as you wish.
 * Project language is Python 3+ 
 * <i>'atm_controller.py'</i> has all of the features requested, but have no specific entry point.
-    * <i>'driver.py'</i> has an entry point like a driver class, and this is a presumed way to start the integrated system.
+    * <del><i>'driver.py'</i> has an entry point like a driver class, and this is a presumed way to start the integrated system.</del>
+    * Currently, only test codes are prepared, and driver class/module is not working.
 * <i>'test/test_atm_controller.py'</i> is a test code based on Python <i>'unittest'</i> module. You can run a test with this file.(also has entry point)
 
 ## 2. Documentary

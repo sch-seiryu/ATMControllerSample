@@ -1,4 +1,6 @@
-from atm_controller import Session, restart_session
+# WARNING - this code is currently out of scope.
+
+from atm_controller import Session
 
 
 __is_alive = True
@@ -16,4 +18,4 @@ if __name__ == '__main__':
             break
 
         # continue to next session
-        restart_session()
+        # restart_session()
