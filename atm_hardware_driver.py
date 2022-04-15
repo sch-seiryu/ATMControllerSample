@@ -52,6 +52,6 @@ def withdraw(amount):
 
 def finalize_and_return_card():
     # TODO codes here - ATM will do mechanical stuffs after the finish of transaction and return the inserted card.
-    raise
+    raise NotImplementedError()
 
 
