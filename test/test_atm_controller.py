@@ -6,7 +6,7 @@ from atm_controller import *
 
 
 # region WRAPPER_TO_PATCH
-_wrapped_value = None
+_wrapped_value = None  # A temporary placeholder for patched methods.
 
 
 def set_wrapped_value(value):
@@ -23,7 +23,7 @@ def compare_with_wrapped_value(*value):
 
 
 def neutralizer_wrapper(*args, **kwargs):
-    """Denies all activities.
+    """Denies all activities. Mostly used to ignore raising of 'NotImplementedError'.
     
     :return:
     """
@@ -47,14 +47,14 @@ class Case:  # DTO for sample cases.
         self.pin = pin
         self.accounts = accounts  # <K, V>: <account_number, balance>
         self.account_numbers = list(accounts.keys())
-        # self._balances = list(accounts.values())
-        
+
+        # Notice that the balances are not listed, as it is supposed to be acquired through bank API.
+
     def account_number_at(self, index):
         return self.account_numbers[index]
-    
+
     def balance_of(self, account_number):
         return self.accounts[account_number]
-    
 
 
 class TestSession(TestCase):
@@ -65,23 +65,19 @@ class TestSession(TestCase):
             Case(card_number='178-982', pin='1059', accounts={'AB3000': 300, 'BC1052': 80}),
             Case(card_number='632-777', pin='3582', accounts={'AA1243': 100, 'BB1845': 50, 'CC9428': 200}),
         )
-        CARD_INSERTION_AND_AUTHROIZATION_TEST_COUNTS = 4
-        self.card_sessions = [
-            [Session() for _ in range(CARD_INSERTION_AND_AUTHROIZATION_TEST_COUNTS)] for _ in range(len(self.cases))]
-        # self.session_cases = {  # An integrated object; <K,V> = <case_name: str, (case: Case, session: Session): tuple>
-        #     f'Case{x}': (y, z) for x, (y, z) in enumerate(zip(self.cases, self.sessions))
-        # }
 
-    # @patch('atm_controller.get_balance', get_wrapped_value)
-    # @patch('atm_controller.request_accounts', get_wrapped_value)
     @patch('atm_controller.request_authorization', compare_with_wrapped_value)
     @patch('atm_hardware_driver.show_balance', neutralizer_wrapper)
     @patch('atm_hardware_driver.finalize_and_return_card', neutralizer_wrapper)
     @patch('atm_hardware_driver.get_card_number', get_wrapped_value)
     def test_controller(self):
-        # TEST - card insertion, authorization
-        # for case_name, (case, session) in self.session_cases.items():
-        for case_number, (case, sessions) in enumerate(zip(self.cases, self.card_sessions)):
+        # TEST - card insertion, and authorization // USING ALL THREE CASES
+        # region Preparing sessions...
+        CARD_INSERTION_AND_AUTHROIZATION_TEST_COUNTS = 4
+        card_sessions = [
+            [Session() for _ in range(CARD_INSERTION_AND_AUTHROIZATION_TEST_COUNTS)] for _ in range(len(self.cases))]
+        # endregion Preparing sessions...
+        for case_number, (case, sessions) in enumerate(zip(self.cases, card_sessions)):
             with self.subTest(test_card_insertion_and_authorization=f'Case{case_number}'):
                 # region INSERT_CARD
 
@@ -119,21 +115,6 @@ class TestSession(TestCase):
                 self.assertRaises(InvalidSessionException, sessions[3].authorize, (case.pin,))
                 # endregion PIN_AUTHORIZATION
 
-        # region Making shortcuts for easy test case accessing.
-        # case0: Case
-        # # session0: Session = Session()
-        # case1: Case
-        # # session1: Session = Session()
-        # case2: Case
-        # # session2: Session = Session()
-        # # case0, session0 = self.session_cases['Case0']
-        # # case1, session1 = self.session_cases['Case1']
-        # # case2, session2 = self.session_cases['Case2']
-        # case0 = self.cases[0]
-        # case1 = self.cases[1]
-        # case2 = self.cases[2]
-        # endregion Making shortcuts for easy test case accessing.
-
         # region SELECT_ACCOUNT
         # USING CASE0
         case = self.cases[0]
@@ -147,11 +128,11 @@ class TestSession(TestCase):
             set_wrapped_value((case.card_number, case.pin))
             s.authorize(case.pin)
         # endregion Preparing sessions...
-        
+
         with self.subTest('test_select_account'):
             with patch('atm_hardware_driver.select_account_index', get_wrapped_value
-            ), patch('atm_controller.request_accounts', lambda x: list(case.accounts.keys())
-            ), patch('atm_controller.get_balance', lambda x: case.accounts[x]):
+                       ), patch('atm_controller.request_accounts', lambda x: list(case.accounts.keys())
+                                ), patch('atm_controller.get_balance', lambda x: case.accounts[x]):
                 # Test improper account selection
                 # - negative index selected
                 set_wrapped_value(-1)
@@ -159,12 +140,12 @@ class TestSession(TestCase):
                 # - selected index is out of bound
                 set_wrapped_value(5)
                 self.assertRaises(InvalidSessionException, sessions[1].select_accounts)
-                
+
                 # Test proper account selection
                 set_wrapped_value(0)
                 sessions[2].select_accounts()
                 self.assertEqual(sessions[2]._account, list(case.accounts.keys())[0])
-                
+
                 # Test reselect account prevention
                 self.assertRaises(InvalidSessionException, sessions[2].select_accounts)
         # endregion SELECT_ACCOUNT
@@ -182,12 +163,12 @@ class TestSession(TestCase):
             set_wrapped_value((case.card_number, case.pin))
             s.authorize(case.pin)
         # endregion Preparing sessions...
-        
+
         with self.subTest('test_deposit'):
             with patch('atm_hardware_driver.deposit', get_wrapped_value
-            ), patch('atm_controller.update_balance', neutralizer_wrapper
-            ), patch('atm_controller.request_accounts', lambda x: case.account_numbers
-            ), patch('atm_controller.get_balance', lambda x: case.balance_of(x)):
+                       ), patch('atm_controller.update_balance', neutralizer_wrapper
+                                ), patch('atm_controller.request_accounts', lambda x: case.account_numbers
+                                         ), patch('atm_controller.get_balance', lambda x: case.balance_of(x)):
                 # Test return value is g.e. than 0
                 # - Using first account
                 with patch('atm_hardware_driver.select_account_index', get_wrapped_value):
@@ -198,7 +179,7 @@ class TestSession(TestCase):
                     self.assertRaises(InvalidSessionException, sessions[0].deposit)
                     # check no change of balance
                     self.assertEqual(sessions[0]._balance, 300)
-                
+
                 # Test balance is properly updated
                 # - Using second account
                 with patch('atm_hardware_driver.select_account_index', get_wrapped_value):
@@ -209,7 +190,7 @@ class TestSession(TestCase):
                     # deposit proper money
                     set_wrapped_value(222)
                     try:
-                        sessions[1].deposit()  # may catch error from bank API
+                        sessions[1].deposit()  # an error may be caught from bank API, due to unaccomplished works.
                     except NotImplementedError:
                         pass
                     self.assertEqual(sessions[1]._balance, 302)  # $80 + $222 = $302
@@ -230,10 +211,10 @@ class TestSession(TestCase):
         # endregion Preparing sessions...
         with self.subTest('test_withdrawal'):
             with patch('atm_hardware_driver.withdrawal_amount', get_wrapped_value
-            ), patch('atm_controller.update_balance', neutralizer_wrapper
-            ), patch('atm_controller.request_accounts', lambda x: case.account_numbers
-            ), patch('atm_controller.get_balance', lambda x: case.balance_of(x)):
-                
+                       ), patch('atm_controller.update_balance', neutralizer_wrapper
+                                ), patch('atm_controller.request_accounts', lambda x: case.account_numbers
+                                         ), patch('atm_controller.get_balance', lambda x: case.balance_of(x)):
+
                 # TODO the function requires proper value in loop, so different approach is necessary.
                 """# Test withdrawal amount is non-positive.
                 # - Using first account
@@ -263,7 +244,6 @@ class TestSession(TestCase):
                     set_wrapped_value(30)
                     sessions[3].withdrawal()
                     self.assertEqual(sessions[3]._balance, 170)
-
         # endregion WITHDRAWAL
 
 

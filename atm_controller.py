@@ -5,6 +5,7 @@ import atm_hardware_driver as ahd
 from bank_api import request_authorization, request_accounts, get_balance, update_balance
 
 
+# TODO - More detail cases of exceptions may be regarded, as inherited classes of <InvalidSessionException>.
 # region User Defined Exceptions
 class InvalidSessionException(BaseException):
 
@@ -35,7 +36,6 @@ class Session:
         # Unique identifier for each session.(random)
         self._card_number = ''
         # Current card number.
-
         self._status = 0  # 0: initial state, 1: card inserted, 2: authorized, 3: account selected, 4: expired
         self._auth = False
         self._account = ''
